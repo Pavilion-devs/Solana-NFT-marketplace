@@ -89,117 +89,48 @@ const getHeaders = (requiresAuth: boolean = false) => {
  * Get trending collections from Magic Eden
  * @param limit - Number of collections to return
  * @param offset - Offset for pagination
+ * @param timeRange - Time range for popularity (e.g., '1d', '7d', '30d')
  * @returns Array of trending collections
  */
-export async function getTrendingCollections(limit = 20, offset = 0): Promise<TrendingCollection[]> {
-  const cacheKey = `trending-collections-${limit}-${offset}`;
-  const cachedData = cache.get<TrendingCollection[]>(cacheKey);
+export async function getTrendingCollections(limit = 20, offset = 0, timeRange: '1d' | '7d' | '30d' = '1d'): Promise<TrendingCollection[]> {
+  const cacheKey = `trending-collections-${limit}-${offset}-${timeRange}`;
   
-  if (cachedData) {
-    return cachedData;
-  }
-  
+  // Bypass cache for direct API call
   await checkRateLimit();
-  
-  // List of popular collections to use as fallback
-  const popularCollections = [
-    { symbol: 'okay_bears', name: 'Okay Bears', image: 'https://img-cdn.magiceden.dev/rs:fill:400:400:0:0/plain/https://bafybeigpgmeklembgujmes5j7w5oqcbv4zxu5db45zl4cxggobnme7pz2m.ipfs.dweb.link/' },
-    { symbol: 'y00ts', name: 'y00ts', image: 'https://img-cdn.magiceden.dev/rs:fill:400:400:0:0/plain/https://bafkreiguzmgbld3ueduiqkjf5bj7i4dkgbrl3bna6ljrvhpqshwp2nsvk4.ipfs.dweb.link/' },
-    { symbol: 'degods', name: 'DeGods', image: 'https://img-cdn.magiceden.dev/rs:fill:400:400:0:0/plain/https://metadata.degods.com/g/4924.png' },
-    { symbol: 'primates', name: 'Primates', image: 'https://img-cdn.magiceden.dev/rs:fill:400:400:0:0/plain/https://dl.airtable.com/.attachmentThumbnails/f8651fcd1f8f2ae5996a1913d57be2a3/c7945b8e' },
-    { symbol: 'shadowysupercoder', name: 'Shadowy Super Coder', image: 'https://img-cdn.magiceden.dev/rs:fill:400:400:0:0/plain/https://arweave.net/ICUq9Erve1RYyYiS6jUEKBiUVVKev_MTtgVDuhNUzs8' },
-    { symbol: 'abc', name: 'ABC Collection', image: 'https://img-cdn.magiceden.dev/rs:fill:400:400:0:0/plain/https://arweave.net/XexXej0Y1a0TcEZBTZbJEFY_WWuQ1dfxLUGJKc8-V34' },
-    { symbol: 'froots', name: 'Froots', image: 'https://bafybeifnx5y2gxf3wlgygbjy2wm6p2vjh5t2oms43prgzjmji2ckkbrrwe.ipfs.dweb.link/4588.png' },
-    { symbol: 'claynosaurz', name: 'Claynosaurz', image: 'https://bafybeih7z6kfghuzmgwvqmjudiwas6f4nzp442yckgafm5ht3ckmfvr5oi.ipfs.dweb.link/' },
-    { symbol: 'famous_fox_federation', name: 'Famous Fox Federation', image: 'https://img-cdn.magiceden.dev/rs:fill:400:400:0:0/plain/https://dl.airtable.com/.attachmentThumbnails/cb8feff57e818a2caf178d734bea6ccc/97f384e2' },
-    { symbol: 'Blocksmith_Labs_Genesis', name: 'Blocksmith Labs', image: 'https://img-cdn.magiceden.dev/rs:fill:400:400:0:0/plain/https://arweave.net/uQVBSjVF-AuB8XiTCbRKdKgop6ywIVYNlIujRBHDXx8' }
-  ];
+
+  console.log('Fetching trending collections from Magic Eden marketplace endpoint');
+  const url = `https://api-mainnet.magiceden.dev/v2/marketplace/popular_collections`;
   
   try {
-    // First try the more reliable API (Tensor)
-    console.log('Fetching trending collections from alternative API');
-    const tensorResponse = await axios.get('https://api.tensor.so/api/collections/top?timeRange=1d&sortBy=volume');
+    const response = await axios.get(url);
     
-    if (tensorResponse.data && tensorResponse.data.collections?.length > 0) {
-      console.log(`Found ${tensorResponse.data.collections.length} trending collections from alternative API`);
+    if (Array.isArray(response.data) && response.data.length > 0) {
+      console.log(`Total collections returned: ${response.data.length}`);
       
-      // Map Tensor collections to our format
-      const collections = tensorResponse.data.collections.slice(offset, offset + limit).map((item: any) => {
-        return {
-          symbol: item.slug,
-          name: item.name,
-          image: item.imageUri,
-          volume24hr: item.volume1d || 0,
-          volumeAll: item.volumeAll || 0
-        };
-      });
+      // Apply limit and offset
+      const paginatedData = response.data.slice(offset, offset + limit);
       
-      // Cache for 15 minutes
-      cache.set(cacheKey, collections, 900);
+      // Map response to our TrendingCollection type
+      const collections = paginatedData.map((item: any) => ({
+        symbol: item.symbol,
+        name: item.name,
+        image: item.image,
+        description: item.description || '',
+        volume24hr: 0, // Not provided by the API
+        volumeAll: item.volumeAll || 0,
+        floorPrice: item.floorPrice ? item.floorPrice / 1000000000 : 0 // Convert lamports to SOL
+      }));
       
+      console.log(`Successfully mapped ${collections.length} collections`);
       return collections;
+    } else {
+      console.log(`Unexpected API response format: ${JSON.stringify(response.data)}`);
+      throw new Error('Invalid response from Magic Eden API');
     }
   } catch (error) {
-    console.log(`Error fetching trending collections from alternative API: ${error instanceof Error ? error.message : String(error)}`);
+    console.error(`Error fetching trending collections from Magic Eden marketplace endpoint: ${error instanceof Error ? error.message : String(error)}`);
+    throw error;
   }
-  
-  try {
-    // Try Magic Eden's internal API
-    console.log('Fetching trending collections from ME internal API');
-    const internalResponse = await axios.get(`${ME_INTERNAL_API}/collections/popular?limit=${limit}&offset=${offset}`);
-    
-    if (internalResponse.data && internalResponse.data.length > 0) {
-      console.log(`Found ${internalResponse.data.length} trending collections from ME internal API`);
-      
-      // Cache for 5 minutes
-      cache.set(cacheKey, internalResponse.data, 300);
-      
-      return internalResponse.data;
-    }
-  } catch (error) {
-    console.log(`Error fetching trending collections from ME internal API: ${error instanceof Error ? error.message : String(error)}`);
-  }
-  
-  try {
-    // Fallback to public API
-    console.log('Fetching trending collections from ME public API');
-    const url = `${BASE_URL}/collections/popular`;
-    const options = {
-      params: { limit, offset },
-      headers: getHeaders()
-    };
-    
-    const collections = await fetchData<TrendingCollection[]>(url, options);
-    
-    if (collections && collections.length > 0) {
-      console.log(`Found ${collections.length} trending collections from ME public API`);
-      
-      // Cache for 5 minutes
-      cache.set(cacheKey, collections, 300);
-      
-      return collections;
-    }
-  } catch (error) {
-    console.log(`Error fetching trending collections from ME public API: ${error instanceof Error ? error.message : String(error)}`);
-  }
-  
-  // If all APIs fail, return fallback collection data
-  console.log('All APIs failed, returning fallback collection data');
-  
-  // Transform popular collections to trending collections with some mock data
-  const fallbackCollections: TrendingCollection[] = popularCollections.slice(0, limit).map(collection => ({
-    ...collection,
-    volume24hr: Math.floor(Math.random() * 1000) / 10, // Random volume between 0-100
-    volumeAll: Math.floor(Math.random() * 10000) / 10, // Random total volume
-    description: `${collection.name} on Solana`,
-    twitter: `https://twitter.com/${collection.symbol}`,
-    discord: `https://discord.gg/${collection.symbol}`
-  }));
-  
-  // Cache for 5 minutes
-  cache.set(cacheKey, fallbackCollections, 300);
-  
-  return fallbackCollections;
 }
 
 /**
@@ -366,14 +297,75 @@ export async function getCollectionStats(symbol: string): Promise<CollectionStat
 }
 
 /**
- * List an NFT for sale
- * @param mint - NFT mint address
- * @param price - Listing price in SOL
- * @param sellerWallet - Seller wallet address
- * @returns Transaction ID
- * @throws Error if Magic Eden API key is not configured
+ * Get listing instruction for an NFT
+ * @param params - Listing parameters
+ * @returns Listing instruction response
+ */
+export interface ListingInstructionParams {
+  seller: string;
+  tokenMint: string;
+  tokenAccount: string;
+  price: number;
+  auctionHouseAddress?: string;
+}
+
+export interface ListingInstructionResponse {
+  txSigned: boolean;
+  tx: string; // Base64 encoded transaction
+  txid: string | null;
+}
+
+export async function getListingInstruction(params: ListingInstructionParams): Promise<ListingInstructionResponse> {
+  if (!config.magicEdenApiKey) {
+    throw new Error('Magic Eden API key is required for listing NFTs');
+  }
+
+  await checkRateLimit();
+
+  const queryParams = new URLSearchParams({
+    seller: params.seller,
+    tokenMint: params.tokenMint,
+    tokenAccount: params.tokenAccount,
+    price: params.price.toString()
+  });
+
+  if (params.auctionHouseAddress) {
+    queryParams.append('auctionHouseAddress', params.auctionHouseAddress);
+  }
+
+  const url = `${BASE_URL}/instructions/sell?${queryParams.toString()}`;
+  
+  try {
+    console.log(`Getting listing instruction for NFT ${params.tokenMint}`);
+    const response = await axios.get(url, {
+      headers: {
+        ...getHeaders(true), // Include API key in headers
+        'Authorization': `Bearer ${config.magicEdenApiKey}`
+      }
+    });
+
+    if (!response.data) {
+      throw new Error('No data received from Magic Eden API');
+    }
+
+    console.log(`Successfully got listing instruction for NFT ${params.tokenMint}`);
+    return {
+      txSigned: false,
+      tx: response.data.tx,
+      txid: null
+    };
+  } catch (error) {
+    console.error(`Error getting listing instruction for NFT ${params.tokenMint}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * List an NFT for sale (DEPRECATED - Use getListingInstruction instead)
+ * @deprecated Use getListingInstruction instead which returns the transaction for wallet signing
  */
 export async function listNft(mint: string, price: number, sellerWallet: string): Promise<{ transactionId: string }> {
+  console.warn('Warning: listNft is deprecated. Use getListingInstruction instead.');
   if (!config.magicEdenApiKey) {
     throw new Error('Magic Eden API key is required for listing NFTs');
   }

@@ -22,6 +22,7 @@ const app = (0, express_1.default)();
 // Middleware
 app.use((0, cors_1.default)());
 app.use(express_1.default.json());
+app.use(express_1.default.urlencoded({ extended: true }));
 // Request logging middleware
 app.use((req, res, next) => {
     const start = Date.now();
@@ -32,9 +33,9 @@ app.use((req, res, next) => {
     next();
 });
 // API routes
-app.use('/collections', collections_1.default);
-app.use('/wallet', wallet_1.default);
-app.use('/nft', nft_1.default);
+app.use('/api/collections', collections_1.default);
+app.use('/api/wallet', wallet_1.default);
+app.use('/api/nft', nft_1.default);
 // Try to load Swagger documentation if available
 try {
     const openapiPath = path_1.default.resolve(__dirname, '../src/docs/openapi.yaml');

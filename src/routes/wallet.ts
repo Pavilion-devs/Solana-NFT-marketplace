@@ -37,67 +37,6 @@ router.get('/:address/nfts', async (req: Request, res: Response): Promise<void> 
   }
 });
 
-/**
- * @route POST /wallet/:address/list
- * @desc List an NFT for sale
- */
-router.post('/:address/list', async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { address } = req.params;
-    const { mint, price } = req.body;
-    
-    if (!address) {
-      res.status(400).json({
-        success: false,
-        error: 'Wallet address is required'
-      });
-      return;
-    }
-    
-    if (!mint) {
-      res.status(400).json({
-        success: false,
-        error: 'NFT mint address is required'
-      });
-      return;
-    }
-    
-    if (typeof price !== 'number' || price <= 0) {
-      res.status(400).json({
-        success: false,
-        error: 'Valid price is required'
-      });
-      return;
-    }
-    
-    // Verify NFT ownership
-    const walletNFTs = await heliusService.getWalletNFTs(address);
-    const ownsNFT = walletNFTs.tokens.some(token => token.mint === mint);
-    
-    if (!ownsNFT) {
-      res.status(403).json({
-        success: false,
-        error: `Wallet ${address} does not own NFT with mint ${mint}`
-      });
-      return;
-    }
-    
-    const result = await magicEdenService.listNft(mint, price, address);
-    
-    res.status(200).json({
-      success: true,
-      data: result
-    });
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-    console.error(`Error listing NFT for wallet ${req.params.address}:`, errorMessage);
-    
-    res.status(500).json({
-      success: false,
-      error: errorMessage
-    });
-  }
-});
 
 /**
  * @route POST /wallet/:address/delist

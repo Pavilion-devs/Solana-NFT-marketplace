@@ -41,9 +41,10 @@ interface WalletNFTs {
 
 // Base URL for Helius API
 const BASE_URL = 'https://api.helius.xyz/v0';
+const HELIUS_RPC_URL = `https://mainnet.helius-rpc.com/?api-key=${config.heliusApiKey}`;
 
 /**
- * Get NFT metadata by mint address
+ * Get NFT metadata by mint address using getAsset RPC method
  * @param mint - NFT mint address
  * @returns NFT metadata
  */
@@ -55,34 +56,86 @@ export async function getNFTMetadata(mint: string): Promise<NFTMetadata> {
     return cachedData;
   }
   
-  const url = `${BASE_URL}/tokens/metadata?api-key=${config.heliusApiKey}`;
-  
   try {
-    const options = {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      data: {
-        mintAccounts: [mint],
-        includeOffChain: true,
-        disableCache: false
+    console.log(`Fetching metadata for NFT ${mint} using getAsset RPC method`);
+    
+    const response = await axios.post(HELIUS_RPC_URL, {
+      jsonrpc: "2.0",
+      id: "my-id",
+      method: "getAsset",
+      params: {
+        id: mint
       }
-    };
+    });
     
-    const response = await fetchData<NFTMetadata[]>(url, options);
-    
-    if (!response.length) {
-      throw new Error(`NFT with mint address ${mint} not found`);
+    if (response.data && response.data.result) {
+      const asset = response.data.result;
+      console.log(`Successfully fetched metadata for NFT ${mint}`);
+      
+      // Map the RPC response to our NFTMetadata type
+      const metadata: NFTMetadata = {
+        mint: asset.id,
+        name: asset.content?.metadata?.name || 'Unknown',
+        symbol: asset.content?.metadata?.symbol || '',
+        image: asset.content?.files?.[0]?.uri || asset.content?.metadata?.image || '',
+        collection: {
+          name: asset.content?.metadata?.collection?.name || 
+                asset.content?.metadata?.collection_metadata?.name ||
+                asset.grouping?.find((g: any) => g.group_key === 'collection')?.group_value || 
+                'Unknown Collection',
+          family: asset.content?.metadata?.collection?.family || 
+                 asset.grouping?.find((g: any) => g.group_key === 'collection')?.group_value || 
+                 ''
+        },
+        attributes: asset.content?.metadata?.attributes,
+        owner: asset.ownership?.owner || '',
+        tokenAccount: asset.ownership?.tokenAccount || '',
+        updateAuthority: asset.authorities?.[0]?.address || '',
+        sellerFeeBasisPoints: asset.royalty?.basis_points || 0,
+        primarySaleHappened: asset.royalty?.primary_sale_happened || false
+      };
+      
+      // Cache for 5 minutes
+      cache.set(cacheKey, metadata, 300);
+      
+      return metadata;
+    } else {
+      throw new Error(`Invalid response for NFT ${mint}`);
     }
-    
-    // Cache for 5 minutes
-    cache.set(cacheKey, response[0], 300);
-    
-    return response[0];
   } catch (error) {
     console.error(`Error fetching metadata for NFT ${mint}:`, error);
-    throw error;
+    
+    // Fallback to old method as a backup
+    try {
+      console.log(`Falling back to REST API for NFT ${mint}`);
+      const url = `${BASE_URL}/tokens/metadata?api-key=${config.heliusApiKey}`;
+      
+      const options = {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        data: {
+          mintAccounts: [mint],
+          includeOffChain: true,
+          disableCache: false
+        }
+      };
+      
+      const response = await fetchData<NFTMetadata[]>(url, options);
+      
+      if (!response.length) {
+        throw new Error(`NFT with mint address ${mint} not found`);
+      }
+      
+      // Cache for 5 minutes
+      cache.set(cacheKey, response[0], 300);
+      
+      return response[0];
+    } catch (fallbackError) {
+      console.error(`Fallback method also failed for NFT ${mint}:`, fallbackError);
+      throw error; // Throw the original error
+    }
   }
 }
 
