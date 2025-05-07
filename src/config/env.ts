@@ -8,7 +8,7 @@ export const config = {
   port: process.env.PORT || 3000,
   nodeEnv: process.env.NODE_ENV || 'development',
   magicEdenApiKey: process.env.MAGIC_EDEN_API_KEY || '',
-  heliusApiKey: "f3a344d5-c515-4ee1-a858-b190af0317a3",
+  heliusApiKey: process.env.HELIUS_API_KEY || '',
 };
 
 // Validate required environment variables
