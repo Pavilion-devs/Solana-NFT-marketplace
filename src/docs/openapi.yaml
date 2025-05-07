@@ -1,0 +1,522 @@
+openapi: 3.0.0
+info:
+  title: Solana NFT MCP Server
+  description: |
+    A Modular Computation Provider (MCP) API for Solana NFTs.
+    This API enables AI agents to interact with the Solana NFT ecosystem.
+  version: 1.0.0
+  contact:
+    name: API Support
+servers:
+  - url: http://localhost:3000
+    description: Local development server
+  - url: https://solana-nft-mcp.vercel.app
+    description: Production server
+
+tags:
+  - name: Collections
+    description: Operations related to NFT collections
+  - name: Wallet
+    description: Operations related to wallet holdings and trading
+  - name: NFT
+    description: Operations related to individual NFTs
+
+paths:
+  /collections/trending:
+    get:
+      summary: Get trending NFT collections
+      description: Returns a list of trending NFT collections on Solana
+      tags:
+        - Collections
+      parameters:
+        - name: limit
+          in: query
+          description: Maximum number of collections to return
+          schema:
+            type: integer
+            default: 20
+        - name: offset
+          in: query
+          description: Number of collections to skip for pagination
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: List of trending collections
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TrendingCollection'
+        '500':
+          $ref: '#/components/responses/Error500'
+
+  /collections/{symbol}/floor-price:
+    get:
+      summary: Get collection floor price
+      description: Returns the current floor price for a specific collection
+      tags:
+        - Collections
+      parameters:
+        - name: symbol
+          in: path
+          required: true
+          description: Collection symbol
+          schema:
+            type: string
+            example: "madlads"
+      responses:
+        '200':
+          description: Floor price information
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/FloorPrice'
+        '400':
+          $ref: '#/components/responses/Error400'
+        '500':
+          $ref: '#/components/responses/Error500'
+
+  /collections/{symbol}/stats:
+    get:
+      summary: Get collection statistics
+      description: Returns statistics for a specific collection
+      tags:
+        - Collections
+      parameters:
+        - name: symbol
+          in: path
+          required: true
+          description: Collection symbol
+          schema:
+            type: string
+            example: "madlads"
+      responses:
+        '200':
+          description: Collection statistics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/CollectionStats'
+        '400':
+          $ref: '#/components/responses/Error400'
+        '500':
+          $ref: '#/components/responses/Error500'
+
+  /wallet/{address}/nfts:
+    get:
+      summary: Get wallet NFTs
+      description: Returns all NFTs owned by a specific wallet
+      tags:
+        - Wallet
+      parameters:
+        - name: address
+          in: path
+          required: true
+          description: Wallet address
+          schema:
+            type: string
+            example: "8YLKoCj1NwCa1eEWjVavXEV9C5pYJrjJxKNUiX14ypjv"
+      responses:
+        '200':
+          description: Wallet NFTs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/WalletNFTs'
+        '400':
+          $ref: '#/components/responses/Error400'
+        '500':
+          $ref: '#/components/responses/Error500'
+
+  /wallet/{address}/list:
+    post:
+      summary: List an NFT for sale
+      description: Lists an NFT owned by the wallet for sale
+      tags:
+        - Wallet
+      parameters:
+        - name: address
+          in: path
+          required: true
+          description: Wallet address
+          schema:
+            type: string
+            example: "8YLKoCj1NwCa1eEWjVavXEV9C5pYJrjJxKNUiX14ypjv"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - mint
+                - price
+              properties:
+                mint:
+                  type: string
+                  description: NFT mint address
+                  example: "ABCDEF123456789..."
+                price:
+                  type: number
+                  description: Listing price in SOL
+                  example: 42.5
+      responses:
+        '200':
+          description: NFT listed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      transactionId:
+                        type: string
+                        example: "tx123456789"
+        '400':
+          $ref: '#/components/responses/Error400'
+        '403':
+          description: Wallet does not own the NFT
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/Error500'
+
+  /wallet/{address}/delist:
+    post:
+      summary: Delist an NFT from sale
+      description: Delists an NFT owned by the wallet from sale
+      tags:
+        - Wallet
+      parameters:
+        - name: address
+          in: path
+          required: true
+          description: Wallet address
+          schema:
+            type: string
+            example: "8YLKoCj1NwCa1eEWjVavXEV9C5pYJrjJxKNUiX14ypjv"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - mint
+              properties:
+                mint:
+                  type: string
+                  description: NFT mint address
+                  example: "ABCDEF123456789..."
+      responses:
+        '200':
+          description: NFT delisted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      transactionId:
+                        type: string
+                        example: "tx123456789"
+        '400':
+          $ref: '#/components/responses/Error400'
+        '403':
+          description: Wallet does not own the NFT
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/Error500'
+
+  /nft/{mint}/metadata:
+    get:
+      summary: Get NFT metadata
+      description: Returns detailed metadata for a specific NFT
+      tags:
+        - NFT
+      parameters:
+        - name: mint
+          in: path
+          required: true
+          description: NFT mint address
+          schema:
+            type: string
+            example: "ABCDEF123456789..."
+      responses:
+        '200':
+          description: NFT metadata
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/NFTMetadata'
+        '400':
+          $ref: '#/components/responses/Error400'
+        '500':
+          $ref: '#/components/responses/Error500'
+
+  /health:
+    get:
+      summary: Health check
+      description: Check if the API is up and running
+      responses:
+        '200':
+          description: API is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "ok"
+                  timestamp:
+                    type: string
+                    format: date-time
+
+components:
+  schemas:
+    Error:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          example: "An error occurred"
+
+    Collection:
+      type: object
+      properties:
+        symbol:
+          type: string
+          example: "madlads"
+        name:
+          type: string
+          example: "Mad Lads"
+        image:
+          type: string
+          format: uri
+          example: "https://example.com/image.png"
+        description:
+          type: string
+          example: "Collection description"
+        twitter:
+          type: string
+          example: "@madlads"
+        discord:
+          type: string
+          example: "https://discord.gg/madlads"
+        website:
+          type: string
+          format: uri
+          example: "https://madlads.io"
+
+    TrendingCollection:
+      allOf:
+        - $ref: '#/components/schemas/Collection'
+        - type: object
+          properties:
+            volume24hr:
+              type: number
+              example: 12500
+            volumeAll:
+              type: number
+              example: 150000
+
+    FloorPrice:
+      type: object
+      properties:
+        floorPrice:
+          type: number
+          example: 42.5
+        listed:
+          type: integer
+          example: 120
+        currency:
+          type: string
+          example: "SOL"
+        updatedAt:
+          type: string
+          format: date-time
+
+    CollectionStats:
+      type: object
+      properties:
+        symbol:
+          type: string
+          example: "madlads"
+        volumeAll:
+          type: number
+          example: 150000
+        volume24hr:
+          type: number
+          example: 12500
+        avgPrice24hr:
+          type: number
+          example: 45.2
+        floorPrice:
+          type: number
+          example: 42.5
+        listedCount:
+          type: integer
+          example: 120
+        listedTotalValue:
+          type: number
+          example: 5100
+
+    NFTAttribute:
+      type: object
+      properties:
+        trait_type:
+          type: string
+          example: "Background"
+        value:
+          type: string
+          example: "Blue"
+
+    NFTRarity:
+      type: object
+      properties:
+        rank:
+          type: integer
+          example: 42
+        score:
+          type: number
+          example: 0.85
+        totalSupply:
+          type: integer
+          example: 10000
+
+    NFTMetadata:
+      type: object
+      properties:
+        mint:
+          type: string
+          example: "ABCDEF123456789..."
+        name:
+          type: string
+          example: "Mad Lad #1337"
+        symbol:
+          type: string
+          example: "MADLAD"
+        image:
+          type: string
+          format: uri
+          example: "https://example.com/nft.png"
+        collection:
+          type: object
+          properties:
+            name:
+              type: string
+              example: "Mad Lads"
+            family:
+              type: string
+              example: "Mad Lads"
+        attributes:
+          type: array
+          items:
+            $ref: '#/components/schemas/NFTAttribute'
+        rarity:
+          $ref: '#/components/schemas/NFTRarity'
+        owner:
+          type: string
+          example: "8YLKoCj1NwCa1eEWjVavXEV9C5pYJrjJxKNUiX14ypjv"
+        tokenAccount:
+          type: string
+          example: "TokenAccountAddress123..."
+        updateAuthority:
+          type: string
+          example: "UpdateAuthAddress123..."
+        sellerFeeBasisPoints:
+          type: integer
+          example: 500
+        primarySaleHappened:
+          type: boolean
+          example: true
+        lastSale:
+          type: object
+          properties:
+            price:
+              type: number
+              example: 38.5
+            signature:
+              type: string
+              example: "TxSignature123..."
+            date:
+              type: string
+              format: date-time
+
+    WalletNFTs:
+      type: object
+      properties:
+        address:
+          type: string
+          example: "8YLKoCj1NwCa1eEWjVavXEV9C5pYJrjJxKNUiX14ypjv"
+        tokens:
+          type: array
+          items:
+            $ref: '#/components/schemas/NFTMetadata'
+
+  responses:
+    Error400:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    
+    Error500:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error' 

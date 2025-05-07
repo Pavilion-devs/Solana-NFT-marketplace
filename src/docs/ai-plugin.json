@@ -1,0 +1,18 @@
+{
+  "schema_version": "v1",
+  "name_for_human": "Solana NFT MCP",
+  "name_for_model": "solanaNftMcp",
+  "description_for_human": "Access Solana NFT data including floor prices, collections, and wallet analysis. Trade, list, and manage NFTs on Solana.",
+  "description_for_model": "This plugin allows you to interact with the Solana NFT ecosystem. You can get floor prices, find trending collections, analyze wallet holdings, get NFT metadata, and even list/delist NFTs on marketplaces. Use this plugin when users ask about Solana NFTs, want to check collection statistics, or need to manage their NFT holdings.",
+  "auth": {
+    "type": "none"
+  },
+  "api": {
+    "type": "openapi",
+    "url": "http://localhost:3000/docs",
+    "is_user_authenticated": false
+  },
+  "logo_url": "http://localhost:3000/logo.png",
+  "contact_email": "support@example.com",
+  "legal_info_url": "http://example.com/legal"
+} 

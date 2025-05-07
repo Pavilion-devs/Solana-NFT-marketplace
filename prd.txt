@@ -1,0 +1,145 @@
+Here’s a clean and complete **Product Requirements Document (PRD)** for your **Solana NFT MCP server** — built specifically to power AI agents that can trade, analyze, and manage NFTs on Solana.
+
+---
+
+# 📝 Product Requirements Document (PRD)
+
+**Project Name:** Solana NFT MCP Server
+**Owner:** Ola
+**Status:** In Development
+**Start Date:** \[Insert Date]
+**Version:** 1.0
+
+---
+
+## 🧩 1. Problem Statement
+
+AI agents (like AutoGPT, ChatGPT Plugins, LangChain chains, etc.) lack structured access to Solana NFT data and marketplace functionality. While users can trade NFTs manually using marketplaces like Magic Eden, agents cannot autonomously analyze, act, or interact with the Solana NFT ecosystem due to the absence of a machine-friendly MCP server.
+
+---
+
+## 🎯 2. Goal
+
+Build a **Modular Computation Provider (MCP) API server** for Solana NFTs that enables **AI agents** to:
+
+* Monitor floor prices
+* Analyze wallet holdings
+* List or delist NFTs
+* Discover trending collections
+* Fetch rarity and metadata
+
+The MCP should be **modular, fast, AI-compatible**, and **hostable on a free tier** like Vercel, Railway, or Deno Deploy.
+
+---
+
+## 🧪 3. Core Features
+
+| Feature                    | Description                                              |
+| -------------------------- | -------------------------------------------------------- |
+| **Floor Price Tracker**    | Get real-time floor prices for NFT collections           |
+| **Trending Collections**   | List hot/trending NFTs on Solana                         |
+| **Wallet Analyzer**        | Fetch NFTs held in any Solana wallet                     |
+| **NFT Lister/Delister**    | List or delist NFTs owned by a wallet                    |
+| **Rarity/Metadata Viewer** | Get traits, images, and rarity of a specific NFT         |
+| **Collection Stats**       | Volume, average sale price, sales history                |
+| **AI Agent Compatibility** | Easy-to-consume REST API + Swagger/OpenAPI documentation |
+
+---
+
+## 📡 4. Tools & Tech Stack
+
+| Category  | Tool                                                                               |
+| --------- | ---------------------------------------------------------------------------------- |
+| Language  | TypeScript / Deno / Node.js                                                        |
+| Framework | Express.js or Aleph.js                                                             |
+| Data APIs | [Magic Eden API], [Helius API] |
+| Hosting   | Vercel / Railway / Deno Deploy (free tier)                                         |
+| Docs      | Swagger (OpenAPI v3)                                                               |
+| Dev Tools | Postman, GitHub                                                                    |
+| Optional  | Redis or in-memory caching                                                         |
+
+---
+
+## 🔌 5. Core API Endpoints
+
+| Endpoint                           | Method | Description                                     |
+| ---------------------------------- | ------ | ----------------------------------------------- |
+| `/collections/trending`            | `GET`  | Returns trending Solana NFT collections         |
+| `/collections/:symbol/floor-price` | `GET`  | Gets floor price of specified collection        |
+| `/collections/:symbol/stats`       | `GET`  | Volume, avg price, listing/sale stats           |
+| `/wallet/:address/nfts`            | `GET`  | Lists NFTs in a wallet                          |
+| `/wallet/:address/list`            | `POST` | Lists a wallet NFT (requires mint + price)      |
+| `/wallet/:address/delist`          | `POST` | Delists a listed NFT                            |
+| `/nft/:mint/metadata`              | `GET`  | Gets image, name, traits, rarity, and ownership |
+
+---
+
+## 🤖 6. AI Agent Implementation
+
+### Format
+
+* The MCP is exposed via HTTP REST API with OpenAPI spec
+* AI agents (AutoGPT, LangChain, ChatGPT Plugin) can call endpoints to read, act, or analyze data
+
+### AI Integration Options
+
+| Agent Type         | Integration Path                                       |
+| ------------------ | ------------------------------------------------------ |
+| **AutoGPT**        | Use custom tool plugin hitting HTTP endpoints          |
+| **LangChain**      | Wrap each endpoint in `RequestsTool` or `APIOperation` |
+| **ChatGPT Plugin** | Host Swagger docs, register plugin with schema         |
+
+### Example LangChain Tool
+
+```ts
+const floorPriceTool = new RequestsGetTool({
+  name: "get_floor_price",
+  description: "Gets floor price of an NFT collection on Solana",
+  url: "https://solana-nft-mcp.com/collections/madlads/floor-price"
+});
+```
+
+---
+
+## 🧠 7. AI Agent Use Cases
+
+| Scenario          | Prompt                                                       |
+| ----------------- | ------------------------------------------------------------ |
+| 📉 Monitor Market | “Tell me when SMB Gen2 floor drops below 10 SOL.”            |
+| 💰 Arbitrage      | “Find NFTs in my wallet that are 2 SOL above current floor.” |
+| 🛒 Auto-listing   | “List my MadLads NFT for 59.5 SOL.”                          |
+| 📊 Wallet Review  | “How much is my NFT wallet worth right now?”                 |
+| 🔍 Trends         | “What are the top trending NFTs on Solana this week?”        |
+| 🎨 NFT Detail     | “Show traits and rarity of this mint address.”               |
+
+---
+
+## 📦 8. Project File Structure
+
+```bash
+├── routes/
+│   ├── collections.ts
+│   ├── wallet.ts
+│   └── nft.ts
+├── services/
+│   ├── magicEden.ts
+│   ├── helius.ts
+├── utils/
+│   ├── fetch.ts
+│   └── cache.ts
+├── docs/
+│   └── openapi.yaml
+├── server.ts
+├── README.md
+├── .env
+└── package.json
+```
+
+---
+
+## 📈 9. Metrics of Success
+
+* ✅ AI agent is able to monitor and trade NFTs via the MCP
+* ✅ System can handle 100+ requests/day on free tier
+* ✅ Public docs available via Swagger or GitHub
+* ✅ Valid use cases demoed with LangChain or GPT agents
