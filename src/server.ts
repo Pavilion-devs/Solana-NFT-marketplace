@@ -36,7 +36,6 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 app.use('/collections', collectionsRoutes);
 app.use('/wallet', walletRoutes);
 app.use('/nft', nftRoutes);
-
 // Try to load Swagger documentation if available
 try {
   const openapiPath = path.resolve(__dirname, '../src/docs/openapi.yaml');
@@ -61,6 +60,11 @@ app.get('/', (req: Request, res: Response) => {
     documentation: '/docs',
     version: '1.0.0'
   });
+});
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({ status: 'healthy' });
 });
 
 // Error handling middleware

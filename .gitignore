@@ -1,3 +1,52 @@
 node_modules
 dist
 .env
+
+
+I want you to build a frontend UI for the Solana NFT Marketplace Control Panel (MCP). The app is designed to let users connect their wallet, view their NFTs, see collection floor prices, access NFT metadata, and interact with an AI chatbot. I already did the design ( check the image attached), I want you to strictly follow the theme, color styling , then you can improvise the rest. So when we're done, we can connect it to our backend MCP server we built.
+
+I’m still waiting for access to Magic Eden's list/delist API endpoints, so don’t implement actual listing/delisting logic yet — just show disabled buttons or messages for now.
+
+
+
+The design should include:
+
+Layout
+A top navbar with app name, wallet connect button, and theme toggle
+
+A sidebar with these items: Dashboard, My NFTs, Collections, Floor Prices, Listed Items, Activity Logs, AI Assistant
+
+A main content area that changes based on selected sidebar option
+
+"My NFTs" Page
+Fetch NFTs from a connected wallet
+
+
+
+Show them in a grid or table format with: image, name, mint address, listing status, and floor price
+
+Buttons: View Metadata (opens a modal or slide panel), List (disabled or mocked), Delist (disabled or mocked)
+
+"Collections" or "Floor Prices" Page
+Allow users to input a collection symbol
+
+Use /collections/{symbol}/floor-price to show current floor price
+
+AI Assistant Panel
+Floating chatbot icon in bottom-right
+
+Clicking it opens a slide-out panel with a chat interface
+
+Agent can help users with NFT questions, floor prices, metadata explanation, etc.
+
+Technical Stack
+Use React + Tailwind CSS or ShadCN components
+
+Use @solana/wallet-adapter for wallet integration
+
+Use Zustand or Redux for state management
+
+Use the Helius RPC endpoints for NFT fetching and metadata
+
+Don't implement list/delist logic yet — just show placeholder modals or logs.
+Structure the project clearly and make sure it’s clean, modern, responsive, and easy to build upon.

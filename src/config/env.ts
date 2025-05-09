@@ -9,6 +9,7 @@ export const config = {
   nodeEnv: process.env.NODE_ENV || 'development',
   magicEdenApiKey: process.env.MAGIC_EDEN_API_KEY || '',
   heliusApiKey: process.env.HELIUS_API_KEY || '',
+  geminiApiKey: process.env.GEMINI_API_KEY || '',
 };
 
 // Validate required environment variables

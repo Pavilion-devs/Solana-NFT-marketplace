@@ -1,27 +1,93 @@
 openapi: 3.0.0
 info:
-  title: Solana NFT MCP Server
-  description: |
-    A Modular Computation Provider (MCP) API for Solana NFTs.
-    This API enables AI agents to interact with the Solana NFT ecosystem.
+  title: Solana NFT MCP API
   version: 1.0.0
-  contact:
-    name: API Support
+  description: API for interacting with Solana NFT marketplace and AI agent
+
 servers:
   - url: http://localhost:3000
     description: Local development server
-  - url: https://solana-nft-mcp.vercel.app
-    description: Production server
 
 tags:
-  - name: Collections
-    description: Operations related to NFT collections
-  - name: Wallet
-    description: Operations related to wallet holdings and trading
+  - name: AI Agent
+    description: NFT AI Agent endpoints
   - name: NFT
-    description: Operations related to individual NFTs
+    description: NFT related operations
+  - name: Collections
+    description: Collection related operations
+  - name: Wallet
+    description: Wallet related operations
 
 paths:
+  /api/ai/query:
+    get:
+      summary: Process a natural language query for NFT operations (GET)
+      tags: [AI Agent]
+      parameters:
+        - in: query
+          name: query
+          required: true
+          schema:
+            type: string
+          description: The natural language query
+        - in: query
+          name: walletAddress
+          required: false
+          schema:
+            type: string
+          description: Optional wallet address for listing/delisting operations
+      responses:
+        '200':
+          description: Query processed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  response:
+                    type: string
+                    example: "Floor price for degods is 25.5 SOL"
+        '400':
+          description: Invalid request
+        '500':
+          description: Server error
+    
+    post:
+      summary: Process a natural language query for NFT operations (POST)
+      tags: [AI Agent]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - query
+              properties:
+                query:
+                  type: string
+                  description: The natural language query
+                  example: "What is the floor price of DeGods?"
+                walletAddress:
+                  type: string
+                  description: Optional wallet address for listing/delisting operations
+                  example: "AaBbCc..."
+      responses:
+        '200':
+          description: Query processed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  response:
+                    type: string
+                    example: "Floor price for degods is 25.5 SOL"
+        '400':
+          description: Invalid request
+        '500':
+          description: Server error
+
   /collections/trending:
     get:
       summary: Get trending NFT collections
