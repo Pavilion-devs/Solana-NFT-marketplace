@@ -187,26 +187,44 @@ export async function getTrendingCollections(limit = 20, offset = 0, timeRange: 
 
 /**
  * Get floor price for a collection using direct ME API
- * @param symbol - Collection symbol
+ * @param collectionIdentifier - Collection symbol or name
  * @returns Floor price information with more accurate data
  */
-export async function getFloorPrice(symbol: string): Promise<FloorPrice> {
-  console.log(`[MagicEden API] Getting floor price for collection: ${symbol}`);
-  const cacheKey = `floor-price-${symbol}`;
+export async function getFloorPrice(collectionIdentifier: string): Promise<FloorPrice> {
+  let symbolToFetch = collectionIdentifier;
+  let isLikelySymbol = /^[a-z0-9_]+$/.test(collectionIdentifier) && collectionIdentifier.includes('_');
+
+  if (!isLikelySymbol) {
+    console.log(`[MagicEden API] getFloorPrice: collectionIdentifier "${collectionIdentifier}" seems like a name, attempting fuzzy match.`);
+    const matchedCollection = await findCollectionByFuzzyName(collectionIdentifier);
+    if (matchedCollection && matchedCollection.symbol) {
+      symbolToFetch = matchedCollection.symbol;
+      console.log(`[MagicEden API] getFloorPrice: Fuzzy match found symbol: "${symbolToFetch}" for name "${collectionIdentifier}".`);
+    } else {
+      // If fuzzy match fails, we can't proceed to get a floor price for a non-existent/unresolved collection.
+      // It might be better to throw an error or return a specific object indicating failure.
+      // For now, let's throw, as the original function would fail if the symbol was invalid.
+      throw new Error(`[MagicEden API] getFloorPrice: Could not find a collection matching "${collectionIdentifier}" via fuzzy search.`);
+    }
+  } else {
+    console.log(`[MagicEden API] getFloorPrice: collectionIdentifier "${collectionIdentifier}" seems like a symbol, using directly.`);
+  }
+
+  console.log(`[MagicEden API] Getting floor price for resolved symbol: ${symbolToFetch}`);
+  const cacheKey = `floor-price-${symbolToFetch}`; // Use resolved symbol for cache key
   const cachedData = cache.get<FloorPrice>(cacheKey);
   
   if (cachedData) {
-    console.log(`[MagicEden API] Returning cached floor price for ${symbol}`);
+    console.log(`[MagicEden API] Returning cached floor price for ${symbolToFetch}`);
     return cachedData;
   }
   
   await checkRateLimit();
   
-  
   // Fallback to standard API
   try {
-    console.log(`[MagicEden API] Trying public API for ${symbol}`);
-    const url = `${BASE_URL}/collections/${symbol}/stats`;
+    console.log(`[MagicEden API] Trying public API for ${symbolToFetch}`);
+    const url = `${BASE_URL}/collections/${symbolToFetch}/stats`;
     const options = {
       headers: getHeaders()
     };
@@ -228,7 +246,7 @@ export async function getFloorPrice(symbol: string): Promise<FloorPrice> {
     
     return floorPriceData;
   } catch (error) {
-    console.log(`[MagicEden API] Error with public API for ${symbol}: ${error instanceof Error ? error.message : String(error)}`);
+    console.log(`[MagicEden API] Error with public API for ${symbolToFetch}: ${error instanceof Error ? error.message : String(error)}`);
     
     // Return fallback data if all APIs fail
     return {
@@ -242,27 +260,44 @@ export async function getFloorPrice(symbol: string): Promise<FloorPrice> {
 
 /**
  * Get collection statistics
- * @param symbol - Collection symbol
+ * @param collectionIdentifier - Collection symbol or name
  * @returns Collection statistics
  */
-export async function getCollectionStats(symbol: string): Promise<CollectionStats> {
-  const cacheKey = `collection-stats-${symbol}`;
+export async function getCollectionStats(collectionIdentifier: string): Promise<CollectionStats> {
+  let symbolToFetch = collectionIdentifier;
+  let isLikelySymbol = /^[a-z0-9_]+$/.test(collectionIdentifier) && collectionIdentifier.includes('_');
+
+  if (!isLikelySymbol) {
+    console.log(`[MagicEden API] collectionIdentifier "${collectionIdentifier}" seems like a name, attempting fuzzy match.`);
+    const matchedCollection = await findCollectionByFuzzyName(collectionIdentifier);
+    if (matchedCollection && matchedCollection.symbol) {
+      symbolToFetch = matchedCollection.symbol;
+      console.log(`[MagicEden API] Fuzzy match found symbol: "${symbolToFetch}" for name "${collectionIdentifier}".`);
+    } else {
+      throw new Error(`[MagicEden API] Could not find a collection matching "${collectionIdentifier}" via fuzzy search.`);
+    }
+  } else {
+    console.log(`[MagicEden API] collectionIdentifier "${collectionIdentifier}" seems like a symbol, using directly.`);
+  }
+
+  const cacheKey = `collection-stats-${symbolToFetch}`; // Use the resolved symbol for cache key
   const cachedData = cache.get<CollectionStats>(cacheKey);
   
   if (cachedData) {
+    console.log(`[MagicEden API] Returning cached stats for symbol: ${symbolToFetch}`);
     return cachedData;
   }
   
   await checkRateLimit();
   
-  
   // Fallback to standard API
-  const url = `${BASE_URL}/collections/${symbol}/stats`;
+  const url = `${BASE_URL}/collections/${symbolToFetch}/stats`;
   const options = {
     headers: getHeaders()
   };
   
   const stats = await fetchData<CollectionStats>(url, options);
+  console.log(`[MagicEden API] Fetched stats for symbol: ${symbolToFetch}`, stats);
   
   // Ensure we have valid data
   const validatedStats: CollectionStats = {
@@ -277,6 +312,7 @@ export async function getCollectionStats(symbol: string): Promise<CollectionStat
   
   // Cache for 1 minute
   cache.set(cacheKey, validatedStats, 60);
+  console.log(`[MagicEden API] Cached stats for symbol: ${symbolToFetch}`);
   
   return validatedStats;
 }

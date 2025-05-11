@@ -1,24 +1,18 @@
-import { findCollectionByFuzzyName } from './services/magicEden';
+import { getFloorPrice, getCollectionStats, findCollectionByFuzzyName } from './services/magicEden';
 import { stdin as input, stdout as output } from 'node:process';
 import * as readline from 'node:readline/promises';
+import { geminiNLU, geminiPhraseResponse } from './services/geminiService';
 
 // --- Mock NLU & Agent Actions ---
 interface NLUEntity { collectionNameRaw?: string; [key: string]: any; }
 interface NLUResult { intent?: string; confidence?: number; entities: NLUEntity; }
 
 const mockAgent = {
-  speak: (message: string) => console.log(`[AI AGENT]: ${message}`),
-  showFloorPrice: (collection: { name: string, symbol: string }, price: number | string) => {
-    mockAgent.speak(`The floor price for ${collection.name} (${collection.symbol}) is ${price}.`);
-  },
-  showCollectionStats: (collection: { name: string, symbol: string }, stats: any) => {
-    mockAgent.speak(`Here are some stats for ${collection.name} (${collection.symbol}): ${JSON.stringify(stats)}`);
-  },
   clarifyOrNotFound: (rawName: string) => {
-    mockAgent.speak(`Sorry, I couldn't find a collection matching "${rawName}". Could you try a different name or check the spelling?`);
+    console.log(`[AI AGENT]: Sorry, I couldn't find a collection matching "${rawName}". Could you try a different name or check the spelling?`);
   },
   unknownIntent: () => {
-    mockAgent.speak("I'm not sure what you'd like to do. You can ask for 'floor price of [collection]' or 'stats for [collection]'.");
+    console.log("[AI AGENT]: I'm not sure what you'd like to do. You can ask for 'floor price of [collection]' or 'stats for [collection]'.");
   }
 };
 
@@ -28,7 +22,7 @@ function parseUserIntentAndEntities(text: string): NLUResult {
   let collectionNameRaw: string | undefined;
   let confidence = 0.7; // Default confidence
 
-  const floorPriceMatch = S.match(/(?:floor price of|floor for|price of)(.+)/i);
+  const floorPriceMatch = S.match(/(?:floor price of|floor price for|floor for|price of|price for)\s+(.+)/i);
   const statsMatch = S.match(/(?:stats for|statistics for|get stats for)(.+)/i);
   const justNameMatch = S.match(/^(?:show me|find|get|lookup|search for|search)(.+)/i);
 
@@ -61,40 +55,56 @@ function parseUserIntentAndEntities(text: string): NLUResult {
 
 async function handleUserQuery(userInputText: string): Promise<void> {
   console.log(`\n[USER]: ${userInputText}`);
-  const nluResult = parseUserIntentAndEntities(userInputText);
+  // Use Gemini for NLU
+  const nluResult = await geminiNLU(userInputText);
 
   if (nluResult.entities.collectionNameRaw) {
     const rawName = nluResult.entities.collectionNameRaw;
-    mockAgent.speak(`Looking for a collection related to "${rawName}"...`);
-    
-    // Call our fuzzy finder
-    // Using default pages (20, but will use cache if populated by a 100-page fetch previously)
-    const resolvedCollection = await findCollectionByFuzzyName(rawName);
-
-    if (resolvedCollection && resolvedCollection.symbol) {
-      const { name: officialName, symbol: officialSymbol } = resolvedCollection;
-      mockAgent.speak(`Found: ${officialName} (Symbol: ${officialSymbol}).`);
-
+    console.log(`[AI AGENT]: Processing request for "${rawName}"...`);
+    try {
       switch (nluResult.intent) {
-        case 'get_floor_price':
-          // In a real scenario, you would call: 
-          // const floorPriceData = await getFloorPrice(officialSymbol);
-          // mockAgent.showFloorPrice(resolvedCollection, floorPriceData.floorPrice || 'Not available');
-          mockAgent.showFloorPrice(resolvedCollection, `(simulated floor price for ${officialSymbol})`);
+        case 'get_floor_price': {
+          const floorPriceData = await getFloorPrice(rawName);
+          if (floorPriceData && floorPriceData.floorPrice !== null) {
+            // Try to get the resolved collection info for phrasing
+            const matchedCollection = await findCollectionByFuzzyName(rawName);
+            const collection = matchedCollection || { name: rawName, symbol: '(unknown)' };
+            const phrased = await geminiPhraseResponse({ action: 'floor_price', collection, data: floorPriceData });
+            console.log(`[AI AGENT]: ${phrased}`);
+          } else {
+            mockAgent.clarifyOrNotFound(rawName + ' (could not retrieve floor price)');
+          }
           break;
-        case 'get_collection_stats':
-          // In a real scenario, you would call:
-          // const statsData = await getCollectionStats(officialSymbol);
-          // mockAgent.showCollectionStats(resolvedCollection, statsData);
-          mockAgent.showCollectionStats(resolvedCollection, { volume: '(simulated volume)', listed: '(simulated count)' });
+        }
+        case 'get_collection_stats': {
+          const statsData = await getCollectionStats(rawName);
+          if (statsData) {
+            const matchedCollection = await findCollectionByFuzzyName(rawName);
+            const collection = matchedCollection || { name: rawName, symbol: statsData.symbol };
+            const phrased = await geminiPhraseResponse({ action: 'collection_stats', collection, data: statsData });
+            console.log(`[AI AGENT]: ${phrased}`);
+          } else {
+            mockAgent.clarifyOrNotFound(rawName + ' (could not retrieve stats)');
+          }
           break;
-        default:
-          mockAgent.speak(`I found ${officialName}, but I'm not sure what you want to do with it. Defaulting to showing stats:`);
-          mockAgent.showCollectionStats(resolvedCollection, { volume: '(simulated volume)', listed: '(simulated count)' });
+        }
+        default: {
+          // Unknown intent, fallback to stats
+          const statsData = await getCollectionStats(rawName);
+          if (statsData) {
+            const matchedCollection = await findCollectionByFuzzyName(rawName);
+            const collection = matchedCollection || { name: rawName, symbol: statsData.symbol };
+            const phrased = await geminiPhraseResponse({ action: 'collection_stats', collection, data: statsData });
+            console.log(`[AI AGENT]: ${phrased}`);
+          } else {
+            mockAgent.clarifyOrNotFound(rawName + ' (could not retrieve stats for default action)');
+          }
           break;
+        }
       }
-    } else {
-      mockAgent.clarifyOrNotFound(rawName);
+    } catch (error) {
+      console.error(`[SIMULATOR ERROR] Error processing "${rawName}":`, error);
+      mockAgent.clarifyOrNotFound(rawName + ` (error: ${error instanceof Error ? error.message : 'Unknown error'})`);
     }
   } else {
     mockAgent.unknownIntent();
@@ -106,13 +116,15 @@ async function interactiveMode() {
   console.log("Ask for 'floor price of [collection]' or 'stats for [collection]'. Type 'exit' to quit.");
   const rl = readline.createInterface({ input, output });
 
-  // Initial cache warm-up if needed (optional, could be slow)
-  // To ensure a good cache for the interactive session, let's try to pre-populate it with one of the popular collections.
-  // This will use the current `allMagicEdenCollections_v2` cache key.
-  // If it's cold, this first call will take time.
-  console.log("[SYSTEM]: Optionally warming up collection cache if cold (Mad Lads, up to 100 pages)...");
-  await findCollectionByFuzzyName("Mad Lads", 3, 100); // This will use/populate ALL_ME_COLLECTIONS_CACHE_KEY
-  console.log("[SYSTEM]: Cache ready or was already warm.");
+  // Initial cache warm-up for allCollections is still useful for the underlying findCollectionByFuzzyName
+  // Now fetch up to 100 pages (50k collections) for the cache
+  console.log("[SYSTEM]: Warming up collection cache with 100 pages (up to 50k collections, e.g., by fetching 'Mad Lads')...");
+  try {
+    await findCollectionByFuzzyName("Mad Lads", 3, 100); // This will trigger a large fetch and cache
+    console.log("[SYSTEM]: Cache ready or was already warm (100 pages).");
+  } catch (e) {
+    console.warn("[SYSTEM]: Optional cache warm-up for 'Mad Lads' might have failed (e.g., if not found initially), but the simulator will proceed.");
+  }
 
   let userInput = '';
   while ((userInput = await rl.question('[YOU]: ')) && userInput.toLowerCase() !== 'exit') {
